@@ -1,4 +1,4 @@
-name = "spotify-mcp-python-worker"
+name = "spotify-mcp-fresh"
 main = "src/index.py"
 compatibility_date = "2024-09-20"
 compatibility_flags = ["python_workers"]
