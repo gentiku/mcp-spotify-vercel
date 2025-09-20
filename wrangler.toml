@@ -1,12 +1,8 @@
 name = "spotify-mcp-worker"
 main = "src/index.py"
 compatibility_date = "2024-09-20"
+compatibility_flags = ["python_workers"]
 
-[env.production.vars]
+[vars]
 SPOTIFY_CLIENT_ID = "c9838c5e918344d6b17e69052d2bbc26"
 SPOTIFY_CLIENT_SECRET = "0815bfd33c504a39b63f6bffd3086ddf"
-
-[[env.production.bindings]]
-name = "ENVIRONMENT"
-type = "plain_text"
-value = "production"
