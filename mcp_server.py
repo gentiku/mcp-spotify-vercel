@@ -558,6 +558,51 @@ class SpotifyMCPServer:
             content=[TextContent(type="text", text=profile_info)]
         )
     
+    async def _handle_tool_call(self, name: str, arguments: Dict[str, Any]) -> Any:
+        """Handle tool calls for HTTP API."""
+        try:
+            # Initialize Spotify client if not already done
+            if self.spotify_client is None:
+                self.spotify_client = SpotifyClient()
+            
+            # Route to appropriate handler
+            if name == "spotify_search":
+                return await self._handle_search(arguments)
+            elif name == "spotify_play":
+                return await self._handle_play(arguments)
+            elif name == "spotify_pause":
+                return await self._handle_pause(arguments)
+            elif name == "spotify_resume":
+                return await self._handle_resume(arguments)
+            elif name == "spotify_skip_next":
+                return await self._handle_skip_next(arguments)
+            elif name == "spotify_skip_previous":
+                return await self._handle_skip_previous(arguments)
+            elif name == "spotify_set_volume":
+                return await self._handle_set_volume(arguments)
+            elif name == "spotify_get_current_track":
+                return await self._handle_get_current_track(arguments)
+            elif name == "spotify_get_devices":
+                return await self._handle_get_devices(arguments)
+            elif name == "spotify_get_user_playlists":
+                return await self._handle_get_user_playlists(arguments)
+            elif name == "spotify_create_playlist":
+                return await self._handle_create_playlist(arguments)
+            elif name == "spotify_add_to_playlist":
+                return await self._handle_add_to_playlist(arguments)
+            elif name == "spotify_get_user_top_tracks":
+                return await self._handle_get_user_top_tracks(arguments)
+            elif name == "spotify_get_recently_played":
+                return await self._handle_get_recently_played(arguments)
+            elif name == "spotify_get_user_profile":
+                return await self._handle_get_user_profile(arguments)
+            else:
+                return {"error": f"Unknown tool: {name}"}
+        
+        except Exception as e:
+            logger.error(f"Error handling tool call {name}: {e}")
+            return {"error": str(e)}
+
     def _format_search_results(self, results: Dict[str, Any], search_type: str) -> str:
         """Format search results for display."""
         if search_type == "track":
