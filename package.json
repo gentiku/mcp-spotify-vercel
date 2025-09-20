@@ -1,12 +1,12 @@
 {
-  "name": "mcp-spotify-vercel",
+  "name": "spotify-mcp-worker",
   "version": "1.0.0",
-  "description": "MCP Spotify server for Vercel",
-  "type": "module",
-  "dependencies": {
-    "spotify-web-api-node": "^5.0.2"
+  "description": "Spotify MCP server for Cloudflare Workers",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
   },
-  "engines": {
-    "node": ">=18.0.0"
+  "devDependencies": {
+    "wrangler": "^3.0.0"
   }
 }
