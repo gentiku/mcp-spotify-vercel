@@ -1,3 +1,0 @@
-# Cloudflare Workers Python requirements
-# Note: Many packages are not available in Workers runtime
-# Keep this minimal for Workers compatibility
