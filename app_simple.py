@@ -1,17 +1,13 @@
 #!/usr/bin/env python3
-"""FastAPI application for Spotify MCP Server on Vercel."""
+"""Simplified FastAPI application for Railway deployment."""
 
 import os
-import json
 import logging
 from typing import Dict, Any, List
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-
-from mcp_server import SpotifyMCPServer
-from config import config
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -33,8 +29,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global MCP server instance
-mcp_server = None
+# Global Spotify client
+spotify_client = None
 
 class ToolCallRequest(BaseModel):
     name: str
@@ -45,97 +41,103 @@ class ToolCallResponse(BaseModel):
     result: Any = None
     error: str = None
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize the MCP server on startup."""
-    global mcp_server
-    try:
-        logger.info("Initializing Spotify MCP Server...")
-        mcp_server = SpotifyMCPServer()
-        logger.info("MCP Server initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize MCP server: {e}")
-        # Don't fail startup - create a minimal server instance
-        mcp_server = type('MockMCPServer', (), {'spotify_client': None})()
+def get_spotify_client():
+    """Get or create Spotify client."""
+    global spotify_client
+    if spotify_client is None:
+        try:
+            from spotify_client_railway import SpotifyClientRailway
+            spotify_client = SpotifyClientRailway()
+            logger.info("Spotify client initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize Spotify client: {e}")
+            spotify_client = None
+    return spotify_client
 
 @app.get("/")
 async def root():
     """Root endpoint with server information."""
     return {
-        "name": config.MCP_SERVER_NAME,
-        "version": config.MCP_SERVER_VERSION,
-        "description": config.MCP_SERVER_DESCRIPTION,
+        "name": "spotify-mcp-server",
+        "version": "1.0.0",
+        "description": "Spotify API integration via MCP",
         "status": "running",
         "endpoints": {
             "health": "/health",
             "tools": "/tools",
-            "call_tool": "/call_tool"
+            "call_tool": "/call_tool",
+            "dashboard": "/dashboard",
+            "top-songs": "/top-songs",
+            "recent-songs": "/recent-songs"
         }
     }
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    try:
-        # Basic health check - just ensure the server is responding
-        return {
-            "status": "healthy",
-            "server": config.MCP_SERVER_NAME,
-            "version": config.MCP_SERVER_VERSION,
-            "mcp_server_ready": mcp_server is not None
-        }
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        return {
-            "status": "unhealthy",
-            "error": str(e)
-        }
+    return {
+        "status": "healthy",
+        "server": "spotify-mcp-server",
+        "version": "1.0.0",
+        "timestamp": "2025-09-20T04:20:00Z"
+    }
 
 @app.get("/tools")
 async def list_tools():
     """List all available MCP tools."""
-    try:
-        if mcp_server is None:
-            raise HTTPException(status_code=500, detail="MCP server not initialized")
-        
-        # Get tools from the MCP server
-        tools = []
-        expected_tools = [
-            'spotify_search', 'spotify_play', 'spotify_pause', 'spotify_resume',
-            'spotify_skip_next', 'spotify_skip_previous', 'spotify_set_volume',
-            'spotify_get_current_track', 'spotify_get_devices', 'spotify_get_user_playlists',
-            'spotify_create_playlist', 'spotify_add_to_playlist', 'spotify_get_user_top_tracks',
-            'spotify_get_recently_played', 'spotify_get_user_profile'
-        ]
-        
-        for tool_name in expected_tools:
-            tools.append({
-                "name": tool_name,
-                "description": f"Spotify {tool_name.replace('spotify_', '').replace('_', ' ')} functionality"
-            })
-        
-        return {
-            "tools": tools,
-            "count": len(tools)
-        }
-    except Exception as e:
-        logger.error(f"Error listing tools: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    tools = [
+        {"name": "spotify_search", "description": "Search for tracks, albums, artists"},
+        {"name": "spotify_play", "description": "Start playback"},
+        {"name": "spotify_pause", "description": "Pause playback"},
+        {"name": "spotify_resume", "description": "Resume playback"},
+        {"name": "spotify_skip_next", "description": "Skip to next track"},
+        {"name": "spotify_skip_previous", "description": "Skip to previous track"},
+        {"name": "spotify_set_volume", "description": "Set playback volume"},
+        {"name": "spotify_get_current_track", "description": "Get current track"},
+        {"name": "spotify_get_devices", "description": "Get available devices"},
+        {"name": "spotify_get_user_playlists", "description": "Get user playlists"},
+        {"name": "spotify_create_playlist", "description": "Create new playlist"},
+        {"name": "spotify_add_to_playlist", "description": "Add tracks to playlist"},
+        {"name": "spotify_get_user_top_tracks", "description": "Get user's top tracks"},
+        {"name": "spotify_get_recently_played", "description": "Get recently played tracks"},
+        {"name": "spotify_get_user_profile", "description": "Get user profile"}
+    ]
+    
+    return {
+        "tools": tools,
+        "count": len(tools)
+    }
 
 @app.post("/call_tool", response_model=ToolCallResponse)
 async def call_tool(request: ToolCallRequest):
     """Call an MCP tool with the given arguments."""
     try:
-        if mcp_server is None:
-            raise HTTPException(status_code=500, detail="MCP server not initialized")
+        client = get_spotify_client()
+        if client is None:
+            return ToolCallResponse(
+                success=False,
+                error="Spotify client not available"
+            )
         
-        # Initialize Spotify client if needed
-        if mcp_server.spotify_client is None:
-            from spotify_client_railway import SpotifyClientRailway
-            mcp_server.spotify_client = SpotifyClientRailway()
-        
-        # Route to appropriate handler
-        result = await mcp_server._handle_tool_call(request.name, request.arguments)
+        # Route to appropriate handler based on tool name
+        if request.name == "spotify_get_user_top_tracks":
+            limit = request.arguments.get("limit", 10)
+            result = client.get_user_top_tracks(limit=limit)
+        elif request.name == "spotify_get_recently_played":
+            limit = request.arguments.get("limit", 10)
+            result = client.get_recently_played(limit=limit)
+        elif request.name == "spotify_search":
+            query = request.arguments.get("query", "")
+            search_type = request.arguments.get("type", "track")
+            limit = request.arguments.get("limit", 20)
+            result = client.search(query, search_type, limit)
+        elif request.name == "spotify_get_user_profile":
+            result = client.get_user_profile()
+        else:
+            return ToolCallResponse(
+                success=False,
+                error=f"Tool {request.name} not implemented"
+            )
         
         return ToolCallResponse(
             success=True,
@@ -149,31 +151,16 @@ async def call_tool(request: ToolCallRequest):
             error=str(e)
         )
 
-@app.get("/test")
-async def test_endpoint():
-    """Simple test endpoint."""
-    return {
-        "message": "Spotify MCP Server is running!",
-        "status": "success",
-        "server": config.MCP_SERVER_NAME
-    }
-
 @app.get("/top-songs")
 async def get_top_songs():
     """Get user's top songs."""
     try:
-        if mcp_server is None:
-            raise HTTPException(status_code=500, detail="MCP server not initialized")
+        client = get_spotify_client()
+        if client is None:
+            raise HTTPException(status_code=500, detail="Spotify client not available")
         
-        # Initialize Spotify client if needed
-        if mcp_server.spotify_client is None:
-            from spotify_client_railway import SpotifyClientRailway
-            mcp_server.spotify_client = SpotifyClientRailway()
+        top_tracks = client.get_user_top_tracks(limit=10)
         
-        # Get top tracks
-        top_tracks = mcp_server.spotify_client.get_user_top_tracks(limit=10)
-        
-        # Format the response
         formatted_tracks = []
         for i, track in enumerate(top_tracks, 1):
             formatted_tracks.append({
@@ -200,18 +187,12 @@ async def get_top_songs():
 async def get_recent_songs():
     """Get user's recently played songs."""
     try:
-        if mcp_server is None:
-            raise HTTPException(status_code=500, detail="MCP server not initialized")
+        client = get_spotify_client()
+        if client is None:
+            raise HTTPException(status_code=500, detail="Spotify client not available")
         
-        # Initialize Spotify client if needed
-        if mcp_server.spotify_client is None:
-            from spotify_client_railway import SpotifyClientRailway
-            mcp_server.spotify_client = SpotifyClientRailway()
+        recent_tracks = client.get_recently_played(limit=10)
         
-        # Get recent tracks
-        recent_tracks = mcp_server.spotify_client.get_recently_played(limit=10)
-        
-        # Format the response
         formatted_tracks = []
         for i, item in enumerate(recent_tracks, 1):
             track = item.get('track', {})
@@ -410,11 +391,6 @@ async def dashboard():
     </html>
     """
     return html_content
-
-# For Vercel deployment
-def handler(request):
-    """Vercel serverless function handler."""
-    return app
 
 if __name__ == "__main__":
     import uvicorn
