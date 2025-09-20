@@ -1,7 +1,12 @@
-name = "spotify-mcp-worker"
+name = "remote-mcp-server"
 main = "src/index.py"
 compatibility_date = "2024-09-20"
 compatibility_flags = ["python_workers"]
+
+[[migrations]]
+tag = "v1"
+new_classes = []
+deleted_classes = ["MyMCP"]
 
 [vars]
 SPOTIFY_CLIENT_ID = "c9838c5e918344d6b17e69052d2bbc26"
