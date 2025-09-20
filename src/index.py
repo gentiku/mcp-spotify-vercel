@@ -6,6 +6,14 @@ import asyncio
 SPOTIFY_CLIENT_ID = ""  # Set in Workers environment
 SPOTIFY_CLIENT_SECRET = ""  # Set in Workers environment
 
+# Dummy Durable Object class to satisfy existing deployment
+class MyMCP:
+    def __init__(self, state, env):
+        pass
+    
+    async def fetch(self, request):
+        return Response.new("Durable Object placeholder", {"status": 200})
+
 class SpotifyMCPWorker:
     def __init__(self):
         self.access_token = None
